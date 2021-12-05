@@ -36,10 +36,9 @@ namespace PlaybackFixBot.Modules
         {
             Log.Debug("Command: fix");
             var refMessage = Context.Message.ReferencedMessage;
-            if (refMessage?.Attachments.Count == 1)
+            foreach (var attachment in refMessage?.Attachments)
             {
-                var attachment = refMessage.Attachments.First();
-                if (attachment.Filename.EndsWith(".mp4") || attachment.Filename.EndsWith(".webm"))
+                if (attachment.Filename.EndsWith(".mp4") || attachment.Filename.EndsWith(".webm") || attachment.Filename.EndsWith(".m4a") || attachment.Filename.EndsWith(".mov") || attachment.Filename.EndsWith("avi"))
                 {
                     //var mediaMatch = Regex.Match(attachment.Url, @"^https?:\/\/media.discordapp.com\/");
                     var cdnMatch = Regex.Match(attachment.Url, @"^https?:\/\/cdn.discordapp.com\/");
@@ -55,26 +54,36 @@ namespace PlaybackFixBot.Modules
                         {
                             Log.Debug($"File too big {attachment.Filename}");
                             await statusMessage.ModifyAsync((message) => { message.Content = new Optional<string>("The download is too powerful :c"); });
-                            return;
+                            continue;
                         }
 
                         File.Move(oname, oname + ext);
                         oname += ext;
                         Log.Debug($"Converting {attachment.Filename}");
                         var fname = Path.Combine(DownloadService.CACHE_PATH, attachment.Filename.EndsWith(".mp4") ? attachment.Filename : (attachment.Filename + ".mp4"));
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
                         void handler(object sender, ConversionProgressEventArgs args)
                         {
-                            Task.Run(async () =>
+                            if(sw.ElapsedMilliseconds > 1000)
                             {
-                                await statusMessage.ModifyAsync((message) => { message.Content = new Optional<string>($"Processing: {args.Percent}%"); });
-                            }).GetAwaiter().GetResult();
+                                sw.Reset();
+                                try
+                                {
+                                    statusMessage.ModifyAsync((message) => { message.Content = new Optional<string>($"Processing: {args.Percent}%"); }).GetAwaiter().GetResult();
+                                }
+                                catch
+                                {
+
+                                }
+                                sw.Start();
+                            }
                         }
                         await EncodeService.ConvertToDiscordPlayableAsync(oname, fname, handler);
                         var info = new FileInfo(fname);
                         if (info.Length > 8 * 1024 * 1024)
                         {
                             await statusMessage.ModifyAsync((message) => { message.Content = new Optional<string>("The upload is too powerful :c"); });
-                            return;
+                            continue;
                         }
                         Log.Debug($"Uploading {attachment.Filename}");
                         var reply = await Context.Message.Channel.SendFileAsync(fname);
@@ -83,7 +92,6 @@ namespace PlaybackFixBot.Modules
                         File.Delete(oname);
                         File.Delete(fname);
                         Log.Debug($"Fixed {attachment.Filename}");
-                        return;
                     }
                 }
             }
