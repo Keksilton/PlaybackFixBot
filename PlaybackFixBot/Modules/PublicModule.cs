@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using Serilog;
 using Xabe.FFmpeg.Events;
 using PlaybackFixBot.Services;
+using Microsoft.Extensions.Logging;
 
 namespace PlaybackFixBot.Modules
 {
@@ -36,7 +37,7 @@ namespace PlaybackFixBot.Modules
         {
             Log.Debug("Command: fix");
             var refMessage = Context.Message.ReferencedMessage;
-            foreach (var attachment in refMessage?.Attachments)
+            foreach (var attachment in refMessage.Attachments)
             {
                 if (attachment.Filename.EndsWith(".mp4") || attachment.Filename.EndsWith(".webm") || attachment.Filename.EndsWith(".m4a") || attachment.Filename.EndsWith(".mov") || attachment.Filename.EndsWith("avi"))
                 {
@@ -71,22 +72,29 @@ namespace PlaybackFixBot.Modules
                                 {
                                     statusMessage.ModifyAsync((message) => { message.Content = new Optional<string>($"Processing: {args.Percent}%"); }).GetAwaiter().GetResult();
                                 }
-                                catch
+                                catch(Exception ex)
                                 {
-
+                                    Log.Error(ex, "An error occured updating status message");
                                 }
                                 sw.Start();
                             }
                         }
                         await EncodeService.ConvertToDiscordPlayableAsync(oname, fname, handler);
                         var info = new FileInfo(fname);
-                        if (info.Length > 8 * 1024 * 1024)
+                        if (info.Length > 50 * 1024 * 1024)
                         {
                             await statusMessage.ModifyAsync((message) => { message.Content = new Optional<string>("The upload is too powerful :c"); });
                             continue;
                         }
                         Log.Debug($"Uploading {attachment.Filename}");
-                        var reply = await Context.Message.Channel.SendFileAsync(fname);
+                        try
+                        {
+                            var reply = await Context.Message.Channel.SendFileAsync(fname);
+                        }
+                        catch(Exception ex)
+                        {
+                            Log.Error(ex, "An error occured uploading file");
+                        }
                         await statusMessage.DeleteAsync();
                         Log.Debug($"Deleteing stuff {attachment.Filename}");
                         File.Delete(oname);

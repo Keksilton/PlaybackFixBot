@@ -37,7 +37,7 @@ namespace PlaybackFixBot.Services
             var contlength = _client.ResponseHeaders[HttpRequestHeader.ContentLength];
 
             var size = long.Parse(contlength);
-            if (size > 8 * 1024 * 1024)
+            if (size > 50 * 1024 * 1024)
                 return string.Empty;
             var fname = Path.Combine(CACHE_PATH, Guid.NewGuid().ToString());
             using var fstream = File.Create(fname);

@@ -10,16 +10,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using System.IO;
+using Serilog.Events;
 
 namespace PlaybackFixBot
 {
     class Program
     {
-        static void Main(string[] args)
-       => new Program().MainAsync().GetAwaiter().GetResult();
 
         public const string TOKEN_PLACEHOLDER = "REPLACE_WITH_TOKEN";
-        public async Task MainAsync()
+        public static async Task Main(string[] args)
         {
             Console.Title = "Playback fix bot";
             
@@ -34,7 +33,10 @@ namespace PlaybackFixBot
 
             // Set up config
             var configInfo = new FileInfo("appsettings.json");
-            var config = new ConfigurationBuilder().AddJsonFile(configInfo.Name, true).Build();
+            var config = new ConfigurationBuilder()
+                .AddJsonFile(configInfo.Name, true)
+                .AddEnvironmentVariables()
+                .Build();
             var settings = config.Get<AppSettings>();
             if(settings== null || string.IsNullOrEmpty(settings.Token) || settings.Token == TOKEN_PLACEHOLDER)
             {
@@ -65,17 +67,33 @@ namespace PlaybackFixBot
             }
         }
 
-        private Task LogAsync(LogMessage log)
+        private static async Task LogAsync(LogMessage message)
         {
-            Console.WriteLine(log.ToString());
-
-            return Task.CompletedTask;
+            var severity = message.Severity switch
+            {
+                LogSeverity.Critical => LogEventLevel.Fatal,
+                LogSeverity.Error => LogEventLevel.Error,
+                LogSeverity.Warning => LogEventLevel.Warning,
+                LogSeverity.Info => LogEventLevel.Information,
+                LogSeverity.Verbose => LogEventLevel.Verbose,
+                LogSeverity.Debug => LogEventLevel.Debug,
+                _ => LogEventLevel.Information
+            };
+            Log.Write(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
+            await Task.CompletedTask;
         }
 
-        private ServiceProvider ConfigureServices()
+        private static ServiceProvider ConfigureServices()
         {
             return new ServiceCollection()
                 .AddSingleton<DiscordSocketClient>()
+                .AddSingleton<DiscordSocketConfig>((sp) =>
+                {
+                    return new DiscordSocketConfig()
+                    {
+                        GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
+                    };
+                })
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<HttpClient>()
