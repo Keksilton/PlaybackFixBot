@@ -18,10 +18,10 @@ namespace PlaybackFixBot.Services
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
 
-        public CommandHandlingService(IServiceProvider services)
+        public CommandHandlingService(IServiceProvider services, CommandService commands, DiscordSocketClient discord)
         {
-            _commands = services.GetRequiredService<CommandService>();
-            _discord = services.GetRequiredService<DiscordSocketClient>();
+            _commands = commands;
+            _discord = discord;
             _services = services;
 
             // Hook CommandExecuted to handle post-command-execution logic.
@@ -40,7 +40,7 @@ namespace PlaybackFixBot.Services
         public async Task MessageReceivedAsync(SocketMessage rawMessage)
         {
             // Ignore system messages, or messages from other bots
-            if (!(rawMessage is SocketUserMessage message)) return;
+            if (rawMessage is not SocketUserMessage message) return;
             if (message.Source != MessageSource.User) return;
 
             // This value holds the offset where the prefix ends
@@ -59,19 +59,19 @@ namespace PlaybackFixBot.Services
             // we will handle the result in CommandExecutedAsync,
         }
 
-        public async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
+        public Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
         {
             // command is unspecified when there was a search failure (command not found); we don't care about these errors
             if (!command.IsSpecified)
-                return;
+                return Task.CompletedTask;
 
             // the command was successful, we don't care about this result, unless we want to log that a command succeeded.
             if (result.IsSuccess)
-                return;
+                return Task.CompletedTask;
 
             // the command failed, let's notify the user that something happened.
-            Log.Debug($"error: {result}");
-            await Task.CompletedTask;
+            Log.Debug("Command execution error: {@Result}", result);
+            return Task.CompletedTask;
         }
     }
 }
