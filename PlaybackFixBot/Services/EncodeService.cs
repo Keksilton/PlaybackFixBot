@@ -1,9 +1,11 @@
 ﻿using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ImageMagick;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Events;
 
@@ -25,6 +27,15 @@ namespace PlaybackFixBot.Services
             var conversion = FFmpeg.Conversions.New().AddStream<IStream>(video, audio).SetOutput(targetName);
             conversion.OnProgress += handler;
             _ = await conversion.Start();
+        }
+
+        public async Task<Stream> ConvertToPng(Stream stream)
+        {
+            using var image = new MagickImage(stream);
+            var ms = new MemoryStream();
+            image.Format = MagickFormat.Png;
+            await image.WriteAsync(ms);
+            return ms;
         }
     }
 }
