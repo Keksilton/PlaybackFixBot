@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
-using Serilog;
 using Xabe.FFmpeg.Events;
 using PlaybackFixBot.Services;
 using Microsoft.Extensions.Logging;
@@ -114,7 +113,7 @@ namespace PlaybackFixBot.Modules
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "An error occured updating status message");
+                    Logger.LogError(ex, "An error occured updating status message");
                 }
 
                 sw.Start();
@@ -138,7 +137,7 @@ namespace PlaybackFixBot.Modules
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "An error occured uploading file");
+                Logger.LogError(ex, "An error occured uploading file");
             }
 
             await statusMessage.DeleteAsync();
@@ -148,7 +147,6 @@ namespace PlaybackFixBot.Modules
             Logger.LogDebug("Fixed {FileName}", attachment.Filename);
         }
 
-        private static readonly Regex _cdnRegex = CdnRegex();
 
         private static bool IsValidVideo(IAttachment attachment)
         {
@@ -156,8 +154,7 @@ namespace PlaybackFixBot.Modules
                 !attachment.Filename.EndsWith(".m4a") && !attachment.Filename.EndsWith(".mov") &&
                 !attachment.Filename.EndsWith("avi")) return false;
 
-            //var mediaMatch = Regex.Match(attachment.Url, @"^https?:\/\/media.discordapp.com\/");
-            var cdnMatch = _cdnRegex.Match(attachment.Url);
+            var cdnMatch = CdnRegex().Match(attachment.Url);
             if (!cdnMatch.Success) return false;
 
             return true;
@@ -167,13 +164,13 @@ namespace PlaybackFixBot.Modules
         {
             if (!attachment.Filename.EndsWith(".webp")) return false;
 
-            //var mediaMatch = Regex.Match(attachment.Url, @"^https?:\/\/media.discordapp.com\/");
-            var cdnMatch = _cdnRegex.Match(attachment.Url);
+            var cdnMatch = CdnRegex().Match(attachment.Url);
             if (!cdnMatch.Success) return false;
 
             return true;
         }
 
+        //var mediaMatch = Regex.Match(attachment.Url, @"^https?:\/\/media.discordapp.com\/");
         [GeneratedRegex(@"^https?:\/\/cdn.discordapp.com\/", RegexOptions.Compiled)]
         private static partial Regex CdnRegex();
     }
