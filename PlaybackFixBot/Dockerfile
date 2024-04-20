@@ -7,10 +7,11 @@ RUN apt-get update \
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["PlaybackFixBot/PlaybackFixBot.csproj", "PlaybackFixBot/"]
+COPY ["PlaybackFixBot.csproj", "PlaybackFixBot/"]
 RUN dotnet restore "PlaybackFixBot/PlaybackFixBot.csproj"
-COPY . .
+
 WORKDIR "/src/PlaybackFixBot"
+COPY . .
 RUN dotnet build "PlaybackFixBot.csproj" -c Release -o /app/build
 
 FROM build AS publish
